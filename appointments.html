@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <head>
+    <meta charset="UTF-8">
+    <title>AutoNex | Appointments & Progress</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .btn-approve { background: #48bb78; color: white; border: none; padding: 5px 10px; cursor: pointer; }
+        .btn-reject { background: #f56565; color: white; border: none; padding: 5px 10px; cursor: pointer; }
+    </style>
+</head>
+    
+<body>
+    <div id="sidebar">
+        <div class="sidebar-header">AutoNex</div>
+        <button class="nav-btn" onclick="location.href='dashboard.html'">📊 Dashboard</button>
+        <button class="nav-btn" onclick="location.href='customers.html'">👥 Customers</button>
+        <button class="nav-btn active" onclick="location.href='vehicles.html'">🚗 Vehicles</button>
+        <button class="nav-btn active" onclick="location.href='appointments.html'">📅 Appointments</button>
+         <button class="nav-btn" onclick="location.href='billing.html'">💰 Billing</button>
+    </div>
+
+      <div id="main-content">
+        <h1>Appointments & Progress</h1>
+        <div class="card">
+            <table>
+                <tr><th>Customer</th><th>Vehicle Number</th><th>Status</th><th>Update Progress</th></tr>
+                <tbody id="appt-body">
+                    <tr>
+                        <td>Jonny</td>
+                        <td>AB-1010</td>
+                        <td id="action-1">
+                            <button class="btn-approve" onclick="approveAppt(1)">Approve</button>
+                            <button class="btn-reject" onclick="rejectAppt(1)">Reject</button>
+                        </td>
+                        <td>
+                            <select onchange="updateVehicleStatus(1, this.value)" disabled id="status-1">
+                                <option>Awaiting Approval</option>
+                                <option>1st Checking</option>
+                                <option>Washing</option>
+                                <option>Oil Changing</option>
+                                <option>Final Check</option>
+                                <option>Ready for Pickup</option>
+                            </select>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+        
+    <script>
+        // APPOINTMENT WORKFLOW
+        function approveAppt(id) {
+            const actionCell = document.getElementById('action-' + id);
+            const statusDropdown = document.getElementById('status-' + id);
+            
+            if(actionCell && statusDropdown) {
+                actionCell.innerHTML = '<b style="color:#48bb78"> APPROVED</b>';
+                statusDropdown.disabled = false;
+                statusDropdown.value = "1st Checking";
+                updateVehicleStatus(id, "1st Checking");
+            }
+        }
+
+        function rejectAppt(id) {
+            if(confirm("Reject this appointment?")) {
+                const actionCell = document.getElementById('action-' + id);
+                if(actionCell) {
+                    actionCell.innerHTML = '<b style="color:#f56565"> REJECTED</b>';
+                }
+            }
+        }
+
+        function updateVehicleStatus(id, status) {
+            console.log(`Vehicle ${id} status updated to: ${status}`);
+            // Logic to save to database would go here
+        }
+    </script>
+    
+</body>
+</html>

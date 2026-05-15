@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AutoNex | Vehicle Management</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="sidebar-header">AutoNex</div>
+        <button class="nav-btn" onclick="location.href='dashboard.html'">📊 Dashboard</button>
+        <button class="nav-btn" onclick="location.href='customers.html'">👥 Customers</button>
+        <button class="nav-btn active" onclick="location.href='vehicles.html'">🚗 Vehicles</button>
+        <button class="nav-btn" onclick="location.href='appointments.html'">📅 Appointments</button>
+        <button class="nav-btn" onclick="location.href='billing.html'">💰 Billing</button>
+    </div>
+
+    <div id="main-content">
+        <div class="page-header">
+            <h1>Vehicle Management</h1>
+        </div>
+
+        <div class="card">
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <input type="text" id="vehSearchInput" placeholder="Search by Plate No, Model or Owner...">
+                <button class="btn-blue" onclick="searchVehicles()"> Search </button>
+            </div>
+
+            <table id="vehicleTable">
+                <thead>
+                    <tr>
+                        <th>Vehicle No</th>
+                        <th>Model</th>
+                        <th>Owner</th>
+                        <th>Service Status</th>
+                        <th>Actions</th>
+                        <th>Descrption</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>ABC-123</td>
+                        <td>Toyota</td>
+                        <td>Jonny</td>
+                        <td><span class="badge badge-update">In Service</span></td>
+                        <td>
+                            <button class="btn-edit" onclick="openServiceModal(this)">Update Service</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="serviceModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Update Service Details</h2>
+            <p id="displayVehNo" style="font-weight: bold; color: #3182ce;"></p>
+            
+            <label>Service Status</label>
+            <select id="serviceStatus">
+                <option value="Queued">Awaiting Approval</option>
+                <option value="1st Checking">1st Checking</option>
+                <option value="In POrogress">In Progress</option>
+                <option value="Oil Changing">Oil Changing</option>
+                <option value="Washing">Washing</option>
+                <option value="Final Check">Final Check</option>
+                <option value="Ready">Ready  for Pickup</option>
+            </select>
+
+            <label>Service Notes</label>
+            <textarea id="serviceNotes" style="width: 100%; height: 80px; border-radius: 6px; border: 1px solid #cbd5e0; padding: 10px;" placeholder="Describe work done..."></textarea>
+
+            <div style="display:flex; gap:10px; margin-top:20px">
+                <button class="btn-blue" style="flex:1" onclick="saveServiceUpdate()">Update Status</button>
+                <button style="flex:1; background:#edf2f7; border:none; border-radius:6px; cursor:pointer;" onclick="closeServiceModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentRow;
+
+        function openServiceModal(btn) {
+            currentRow = btn.parentNode.parentNode;
+            const vehNo = currentRow.cells[0].innerText;
+            document.getElementById('displayVehNo').innerText = "Vehicle: " + vehNo;
+            document.getElementById('serviceModal').style.display = 'flex';
+        }
+
+        function closeServiceModal() {
+            document.getElementById('serviceModal').style.display = 'none';
+        }
+
+        function saveServiceUpdate() {
+            const status = document.getElementById('serviceStatus').value;
+            
+            // Update the status cell with a badge
+            let badgeClass = "badge-update";
+            if(status === "Ready") badgeClass = "badge-new";
+            if(status === "Queued") badgeClass = "badge-alert";
+
+            currentRow.cells[3].innerHTML = `<span class="badge ${badgeClass}">${status}</span>`;
+            
+            alert("Service details updated successfully!");
+            closeServiceModal();
+        }
+
+        function searchVehicles() {
+            const input = document.getElementById("vehSearchInput");
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById("vehicleTable");
+            const tr = table.getElementsByTagName("tr");
+
+            for (let i = 1; i < tr.length; i++) {
+                let found = false;
+                const td = tr[i].getElementsByTagName("td");
+                for (let j = 0; j < 3; j++) { // Search Plate, Model, and Owner
+                    if (td[j].innerHTML.toUpperCase().indexOf(filter) > -1) {
+                        found = true;
+                    }
+                }
+                tr[i].style.display = found ? "" : "none";
+            }
+        }
+    </script>
+</body>
+</html>
