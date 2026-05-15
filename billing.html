@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AutoNex | Billing</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="sidebar">
+        <div class="sidebar-header">AutoNex</div>
+        <button class="nav-btn" onclick="location.href='dashboard.html'">📊 Dashboard</button>
+        <button class="nav-btn" onclick="location.href='customers.html'">👥 Customers</button>
+        <button class="nav-btn" onclick="location.href='vehicles.html'">🚗 Vehicles</button>
+        <button class="nav-btn" onclick="location.href='appointments.html'">📅 Appointments</button>
+        <button class="nav-btn active" onclick="location.href='billing.html'">💰 Billing</button>
+    </div>
+
+    <div id="main-content">
+        <h1>Create Invoice</h1>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+            
+            <div class="card">
+                <h3>Invoice Details</h3>
+                <input type="text" id="custName" placeholder="Customer Name" oninput="updateBill()">
+                <input type="text" id="vehNo" placeholder="Vehicle Number" oninput="updateBill()">
+                
+                <div id="itemsList">
+                    <label>Items / Services</label>
+                    <div style="display:flex; gap:5px; margin-bottom:10px">
+        
+                        <select type="dropdown" class="item-desc" placeholder="Ready for pickup" oninput="updateBill()">  
+                            <option>Awaiting Approval</option>
+                            <option>1st Checking</option>
+                            <option>Washing</option>
+                            <option>Oil Changing</option>
+                            <option>Final Check</option>
+                            <option>Ready for Pickup</option>
+                        </select>
+                        
+                        <input type="number" class="item-amt" placeholder="Price" style="width:100px" oninput="updateBill()">
+                    </div>
+                </div>
+                <button class="btn-blue" onclick="addNewItem()" style="background:#edf2f7; color:#2d3748; width:100%">+ Add Item</button>
+                
+                <hr style="margin:20px 0">
+                <button class="btn-green" style="width:100%; background:#48bb78" onclick="window.print()">Download PDF / Print</button>
+            </div>
+
+            <div id="printableInvoice" class="receipt-preview">
+                <div style="text-align:center; border-bottom:2px solid #000; padding-bottom:10px">
+                    <h2 style="margin:0">AutoNex</h2>
+                    <h3 style="margin:0">WorkShop Name</3>
+                    <p style="margin:2px">Professional Auto Care</p>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin:20px 0">
+                    <div>
+                        <p><strong>Customer:</strong> <span id="prevCust">---</span></p>
+                        <p><strong>Vehicle:</strong> <span id="prevVeh">---</span></p>
+                    </div>
+                    <div style="text-align:right">
+                        <p>Date: May 11, 2026</p>
+                        <p>Inv: #INV-1001</p>
+                    </div>
+                </div>
+                <table style="width:100%">
+                    <thead style="border-bottom:1px solid #000">
+                        <tr><th style="background:none">Description</th><th style="text-align:right; background:none">Amount</th></tr>
+                    </thead>
+                    <tbody id="prevRows"></tbody>
+                </table>
+                <div style="text-align:right; border-top:2px solid #000; margin-top:20px; padding-top:10px">
+                    <h3 style="margin:0">TOTAL: Rs.<span id="prevTotal">0.00</span></h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function addNewItem() {
+            const container = document.getElementById('itemsList');
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.gap = '5px';
+            row.style.marginBottom = '10px';
+            row.innerHTML = `<input type="text" class="item-desc" placeholder="Description" oninput="updateBill()">
+                             <input type="number" class="item-amt" placeholder="Price" style="width:100px" oninput="updateBill()">`;
+            container.appendChild(row);
+        }
+
+        function updateBill() {
+            document.getElementById('prevCust').innerText = document.getElementById('custName').value || "---";
+            document.getElementById('prevVeh').innerText = document.getElementById('vehNo').value || "---";
+            
+            const descs = document.querySelectorAll('.item-desc');
+            const amts = document.querySelectorAll('.item-amt');
+            const tbody = document.getElementById('prevRows');
+            let total = 0;
+            
+            tbody.innerHTML = '';
+            for(let i=0; i < descs.length; i++) {
+                if(descs[i].value) {
+                    let val = parseFloat(amts[i].value) || 0;
+                    total += val;
+                    tbody.innerHTML += `<tr><td>${descs[i].value}</td><td style="text-align:right">Rs.${val.toFixed(2)}</td></tr>`;
+                }
+            }
+            document.getElementById('prevTotal').innerText = total.toFixed(2);
+        }
+    </script>
+</body>
+</html>

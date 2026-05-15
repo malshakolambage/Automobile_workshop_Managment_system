@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AutoNex | Customer Management</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="sidebar-header">AutoNex</div>
+        <button class="nav-btn" onclick="location.href='dashboard.html'">📊 Dashboard</button>
+        <button class="nav-btn active" onclick="location.href='customers.html'">👥 Customers</button>
+        <button class="nav-btn" onclick="location.href='vehicles.html'">🚗 Vehicles</button>
+        <button class="nav-btn" onclick="location.href='appointments.html'">📅 Appointments</button>
+        <button class="nav-btn" onclick="location.href='billing.html'">💰 Billing</button>
+    </div>
+
+    <div id="main-content">
+        <div class="page-header">
+            <h1>Customer Management</h1>
+            <button class="btn-blue" onclick="openModal()">+ Add Customer</button>
+        </div>
+
+        <div class="card">
+            <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+                <input type="text" id="searchInput" placeholder="Search by name, phone, or vehicle number..." style="width: 100%; max-width: 400px;">
+                <button class="btn-blue" onclick="searchTable()">Search</button>
+                <button onclick="resetSearch()" style="background: #edf2f7; border: none; padding: 10px; border-radius: 6px; cursor: pointer;">Reset</button>
+            </div>
+
+            <table id="customerTable">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Mobile No</th>
+                        <th>Email</th>
+                        <th>Vehicle No</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Saman Perera</td>
+                        <td>0771234567</td>
+                        <td>saman@gmail.com</td>
+                        <td>ABC-1234</td>
+                        <td>
+                            <button class="btn-edit" onclick="editRow(this)">Edit</button>
+                            <button class="btn-delete" onclick="deleteRow(this)">Delete</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="customerModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="modalTitle">Add New Customer</h2>
+            <input type="hidden" id="editIndex">
+            
+            <label>Name</label>
+            <input type="text" id="custName" placeholder="Full Name">
+            
+            <label>Mobile No</label>
+            <input type="text" id="custMobile" placeholder="Mobile Number">
+            
+            <label>Email</label>
+            <input type="email" id="custEmail" placeholder="email">
+            
+            <label>Vehicle No</label>
+            <input type="text" id="custVehicle" placeholder="XXX-0000">
+
+            <div style="display:flex; gap:10px; margin-top:20px">
+                <button class="btn-blue" style="flex:1" onclick="saveCustomer()">Save Customer</button>
+                <button style="flex:1; background:#edf2f7; border:none; border-radius:6px; cursor:pointer;" onclick="closeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openModal() {
+            document.getElementById('modalTitle').innerText = "Add New Customer";
+            document.getElementById('editIndex').value = "";
+            clearInputs();
+            document.getElementById('customerModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('customerModal').style.display = 'none';
+        }
+
+        function clearInputs() {
+            document.getElementById('custName').value = "";
+            document.getElementById('custMobile').value = "";
+            document.getElementById('custEmail').value = "";
+            document.getElementById('custVehicle').value = "";
+        }
+
+        //SAVE CUSTOMER 
+        function saveCustomer() {
+            const name = document.getElementById('custName').value;
+            const mobile = document.getElementById('custMobile').value;
+            const email = document.getElementById('custEmail').value;
+            const vehicle = document.getElementById('custVehicle').value;
+            const editIndex = document.getElementById('editIndex').value;
+
+            if(!name || !mobile || !vehicle) {
+                alert("Please fill in the required fields!");
+                return;
+            }
+
+            const table = document.getElementById("customerTable").getElementsByTagName('tbody')[0];
+
+            if (editIndex === "") {
+                // ADD NEW ROW
+                const row = table.insertRow();
+                row.innerHTML = `
+                    <td>${name}</td>
+                    <td>${mobile}</td>
+                    <td>${email}</td>
+                    <td>${vehicle}</td>
+                    <td>
+                        <button class="btn-edit" onclick="editRow(this)">Edit</button>
+                        <button class="btn-delete" onclick="deleteRow(this)">Delete</button>
+                    </td>
+                `;
+            } else {
+                // UPDATE EXISTING ROW
+                const row = table.rows[editIndex];
+                row.cells[0].innerText = name;
+                row.cells[1].innerText = mobile;
+                row.cells[2].innerText = email;
+                row.cells[3].innerText = vehicle;
+            }
+
+            // Sync to Vehicle Page (LocalStorage)
+            let vehicles = JSON.parse(localStorage.getItem('garageVehicles')) || [];
+            vehicles.push({
+                plate: vehicle,
+                model: "Unknown", 
+                owner: name,
+                status: "Queued"
+            });
+            localStorage.setItem('garageVehicles', JSON.stringify(vehicles));
+
+            closeModal();
+        }
+
+        function deleteRow(btn) {
+            if(confirm("Are you sure you want to delete this record?")) {
+                const row = btn.parentNode.parentNode;
+                row.parentNode.removeChild(row);
+            }
+        }
+
+        function editRow(btn) {
+            const row = btn.parentNode.parentNode;
+            document.getElementById('modalTitle').innerText = "Edit Customer";
+            document.getElementById('editIndex').value = row.rowIndex - 1;
+            
+            document.getElementById('custName').value = row.cells[0].innerText;
+            document.getElementById('custMobile').value = row.cells[1].innerText;
+            document.getElementById('custEmail').value = row.cells[2].innerText;
+            document.getElementById('custVehicle').value = row.cells[3].innerText;
+
+            document.getElementById('customerModal').style.display = 'flex';
+        }
+
+        // SEARCH FUNCTION WITH HIGHLIGHTING
+        function searchTable() {
+            const input = document.getElementById("searchInput");
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById("customerTable");
+            const tr = table.getElementsByTagName("tr");
+
+            if (!filter) {
+                resetSearch();
+                return;
+            }
+
+            for (let i = 1; i < tr.length; i++) {
+                let found = false;
+                const tds = tr[i].getElementsByTagName("td");
+                
+                // Reset highlighting first
+                for (let j = 0; j < tds.length - 1; j++) {
+                    let text = tds[j].innerText;
+                    tds[j].innerHTML = text; // Remove existing tags
+                    
+                    if (text.toUpperCase().indexOf(filter) > -1) {
+                        found = true;
+                        // Apply Highlight
+                        let regex = new RegExp(filter, 'gi');
+                        tds[j].innerHTML = text.replace(regex, (match) => `<mark>${match}</mark>`);
+                    }
+                }
+                tr[i].style.display = found ? "" : "none";
+            }
+        }
+
+        function resetSearch() {
+            const tr = document.getElementById("customerTable").getElementsByTagName("tr");
+            document.getElementById("searchInput").value = "";
+            for (let i = 1; i < tr.length; i++) {
+                tr[i].style.display = "";
+                const tds = tr[i].getElementsByTagName("td");
+                for (let j = 0; j < tds.length - 1; j++) {
+                    tds[j].innerHTML = tds[j].innerText; 
+                }
+            }
+        }
+    </script>
+</body>
+</html>
