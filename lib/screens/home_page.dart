@@ -8,11 +8,16 @@ import 'notification_page.dart';
 import 'chat_workshop_page.dart';
 import 'tracking_page.dart';
 import 'feedback_page.dart';
+import 'profile_page.dart';
+
 
 import '../widgets/dashboard_card.dart';
 
 class HomePage extends StatelessWidget {
+
   final String username;
+
+  final bool hasActiveService = true;
 
   const HomePage({
     super.key,
@@ -43,7 +48,7 @@ class HomePage extends StatelessWidget {
           child: Column(
             children: [
 
-              // 🔥 TOP HEADER
+              
               Padding(
                 padding: const EdgeInsets.all(20),
 
@@ -67,7 +72,7 @@ class HomePage extends StatelessWidget {
                           children: [
 
                             Text(
-                              "Welcome, $username 👋",
+                              "Welcome  $username ",
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 28,
@@ -87,115 +92,232 @@ class HomePage extends StatelessWidget {
                           ],
                         ),
 
-                        // PROFILE ICON
-                        Container(
-                          padding: const EdgeInsets.all(12),
 
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
 
-                            color:
-                                Colors.white.withOpacity(0.08),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ProfilePage(),
+                              ),
+                            );
+                          },
 
-                            border: Border.all(
-                              color:
-                                  Colors.white.withOpacity(0.12),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+
+                              color: Colors.white.withOpacity(0.08),
+
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.12),
+                              ),
+                            ),
+
+                            child: const Icon(
+                              Icons.person,
+                              color: Colors.white,
                             ),
                           ),
-
-                          child: const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                          ),
-                        ),
+                            ),
                       ],
                     ),
 
                     const SizedBox(height: 25),
 
-                    // STATUS CARD
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
+                    
+                    // ACTIVE SERVICE CARD
+
+                  GestureDetector(
+
+                    onTap: hasActiveService
+                        ? () {
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const TrackingPage(),
+                              ),
+                            );
+
+                          }
+                        : null,
+
+
+                    child: ClipRRect(
+
+                      borderRadius:
+                          BorderRadius.circular(24),
+
 
                       child: BackdropFilter(
+
                         filter: ImageFilter.blur(
                           sigmaX: 12,
                           sigmaY: 12,
                         ),
 
+
                         child: Container(
+
                           width: double.infinity,
-                          padding: const EdgeInsets.all(20),
+
+                          padding:
+                              const EdgeInsets.all(20),
+
 
                           decoration: BoxDecoration(
+
                             borderRadius:
                                 BorderRadius.circular(24),
+
 
                             color:
                                 Colors.white.withOpacity(0.08),
 
+
                             border: Border.all(
+
                               color:
                                   Colors.white.withOpacity(0.12),
+
                             ),
                           ),
 
+
+
                           child: Row(
+
                             mainAxisAlignment:
                                 MainAxisAlignment.spaceBetween,
 
+
                             children: [
 
-                              const Column(
+
+
+                              Column(
+
                                 crossAxisAlignment:
                                     CrossAxisAlignment.start,
 
+
                                 children: [
 
-                                  Text(
+
+                                  const Text(
+
                                     "Active Service",
+
                                     style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 14,
+
+                                      color:
+                                          Colors.white70,
+
+                                      fontSize:14,
                                     ),
                                   ),
 
-                                  SizedBox(height: 8),
+
+
+                                  const SizedBox(height:8),
+
+
 
                                   Text(
-                                    "No ongoing repairs",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 18,
+
+                                    hasActiveService
+                                        ? "Toyota Prius - Engine Repair"
+                                        : "No ongoing repairs",
+
+
+                                    style: const TextStyle(
+
+                                      color:
+                                          Colors.white,
+
+                                      fontSize:18,
+
                                       fontWeight:
                                           FontWeight.bold,
+
                                     ),
                                   ),
+
+
+
+                                  const SizedBox(height:8),
+
+
+
+                                  if(hasActiveService)
+
+                                  const Text(
+
+                                    "Repair in progress • Tap to track",
+
+                                    style: TextStyle(
+
+                                      color:
+                                          Colors.greenAccent,
+
+                                      fontSize:13,
+
+                                    ),
+                                  ),
+
                                 ],
                               ),
 
+
+
+
+
                               Container(
+
                                 padding:
                                     const EdgeInsets.all(14),
 
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
 
-                                  color: Colors.white
-                                      .withOpacity(0.08),
+                                decoration: BoxDecoration(
+
+                                  shape:
+                                      BoxShape.circle,
+
+
+                                  color:
+                                      Colors.white.withOpacity(0.08),
+
                                 ),
 
-                                child: const Icon(
-                                  Icons.car_repair,
-                                  color: Colors.white,
-                                  size: 30,
+
+
+                                child: Icon(
+
+                                  hasActiveService
+                                      ? Icons.track_changes
+                                      : Icons.car_repair,
+
+
+                                  color:
+                                      Colors.white,
+
+
+                                  size:30,
+
                                 ),
                               ),
+
                             ],
                           ),
                         ),
                       ),
                     ),
+                  ),
                   ],
                 ),
               ),
@@ -237,68 +359,61 @@ class HomePage extends StatelessWidget {
                     children: [
 
                       //  BOOK SERVICE
+
                       DashboardCard(
                         icon: Icons.calendar_month,
                         title: "Book Service",
-
+                        type: CardType.services,
                         onTap: () {
                           Navigator.push(
                             context,
-
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const BookingPage(),
+                              builder: (context) => const BookingPage(),
                             ),
                           );
                         },
                       ),
 
-                      // HISTORY
+                      // SERVICE HISTORY
                       DashboardCard(
                         icon: Icons.history,
                         title: "Service History",
-
+                        type: CardType.analytics,
                         onTap: () {
                           Navigator.push(
                             context,
-
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const HistoryPage(),
+                              builder: (context) => const HistoryPage(),
                             ),
                           );
                         },
                       ),
 
-                      //TRACK VEHICLE
+                      // TRACK VEHICLE
                       DashboardCard(
                         icon: Icons.track_changes,
                         title: "Track Vehicle",
-
+                        type: CardType.vehicles,
                         onTap: () {
                           Navigator.push(
                             context,
-
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const TrackingPage(),
+                              builder: (context) => const TrackingPage(),
                             ),
                           );
                         },
                       ),
 
-                      // CHAT
+                      // CHAT WORKSHOP
                       DashboardCard(
                         icon: Icons.chat,
                         title: "Chat Workshop",
-
+                        type: CardType.customers,
                         onTap: () {
                           Navigator.push(
                             context,
-
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const ChatPage(),
+                              builder: (context) => const ChatPage(),
                             ),
                           );
                         },
@@ -308,14 +423,12 @@ class HomePage extends StatelessWidget {
                       DashboardCard(
                         icon: Icons.notifications,
                         title: "Notifications",
-
+                        type: CardType.services,
                         onTap: () {
                           Navigator.push(
                             context,
-
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const NotificationsPage(),
+                              builder: (context) => const NotificationsPage(),
                             ),
                           );
                         },
@@ -325,14 +438,12 @@ class HomePage extends StatelessWidget {
                       DashboardCard(
                         icon: Icons.star_rate,
                         title: "Feedback",
-
+                        type: CardType.analytics,
                         onTap: () {
                           Navigator.push(
                             context,
-
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const FeedbackPage(),
+                              builder: (context) => const FeedbackPage(),
                             ),
                           );
                         },
