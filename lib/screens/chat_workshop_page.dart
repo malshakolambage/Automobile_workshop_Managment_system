@@ -1,51 +1,212 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 
-class ChatPage extends StatelessWidget {
+class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
+
+  @override
+  State<ChatPage> createState() => _ChatPageState();
+}
+
+class _ChatPageState extends State<ChatPage> {
+  final TextEditingController messageController =
+      TextEditingController();
+
+  final List<Map<String, dynamic>> messages = [
+    {
+      "message":
+          "Hello! Your vehicle has been received for inspection.",
+      "isCustomer": false,
+    },
+    {
+      "message":
+          "Thank you. Please let me know the estimated completion time.",
+      "isCustomer": true,
+    },
+    {
+      "message":
+          "The service should be completed before 4:30 PM.",
+      "isCustomer": false,
+    },
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF071120),
-              Color(0xFF0B1E36),
-              Color(0xFF102944),
-            ],
-          ),
-        ),
+      backgroundColor: const Color(0xFF071120),
 
-        child: SafeArea(
-          child: Column(
-            children: [
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.white,
+        title: const Text("Workshop Chat"),
+      ),
 
-              const SizedBox(height: 20),
+      body: Column(
+        children: [
 
-              const Text(
-                "Workshop Chat",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+          // Workshop Info Card
+          Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
+
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.12),
               ),
+            ),
 
-              const Expanded(
-                child: Center(
-                  child: Text(
-                    "Chat system coming soon...",
-                    style: TextStyle(color: Colors.white70),
+            child: const Row(
+              children: [
+
+                CircleAvatar(
+                  radius: 24,
+                  child: Icon(Icons.car_repair),
+                ),
+
+                SizedBox(width: 12),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+
+                      Text(
+                        "AutoNex Workshop",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      SizedBox(height: 4),
+
+                      Text(
+                        "Online",
+                        style: TextStyle(
+                          color: Colors.greenAccent,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+
+          // Messages
+          Expanded(
+            child: ListView.builder(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16),
+
+              itemCount: messages.length,
+
+              itemBuilder: (context, index) {
+                final message = messages[index];
+
+                return Align(
+                  alignment: message["isCustomer"]
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+
+                  child: Container(
+                    margin:
+                        const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(14),
+
+                    constraints: const BoxConstraints(
+                      maxWidth: 280,
+                    ),
+
+                    decoration: BoxDecoration(
+                      color: message["isCustomer"]
+                          ? Colors.blueAccent
+                          : Colors.white.withOpacity(0.08),
+
+                      borderRadius:
+                          BorderRadius.circular(18),
+                    ),
+
+                    child: Text(
+                      message["message"],
+                      style: const TextStyle(
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Message Input
+          Container(
+            padding: const EdgeInsets.all(16),
+
+            child: Row(
+              children: [
+
+                Expanded(
+                  child: TextField(
+                    controller: messageController,
+
+                    style: const TextStyle(
+                      color: Colors.white,
+                    ),
+
+                    decoration: InputDecoration(
+                      hintText: "Type message...",
+                      hintStyle: const TextStyle(
+                        color: Colors.white54,
+                      ),
+
+                      filled: true,
+                      fillColor:
+                          Colors.white.withOpacity(0.08),
+
+                      border: OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius.circular(20),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 10),
+
+                CircleAvatar(
+                  backgroundColor: Colors.blueAccent,
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.send,
+                      color: Colors.white,
+                    ),
+                    onPressed: () {
+                      if (messageController.text
+                          .trim()
+                          .isEmpty) return;
+
+                      setState(() {
+                        messages.add({
+                          "message":
+                              messageController.text,
+                          "isCustomer": true,
+                        });
+                      });
+
+                      messageController.clear();
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
