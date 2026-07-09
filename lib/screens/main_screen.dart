@@ -34,7 +34,15 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F1A),
 
-      body: pages[currentIndex],
+      // FIX: was `body: pages[currentIndex]`, which destroys and rebuilds
+      // the selected page every time you switch tabs — losing scroll
+      // position, form input, and (once wired to a backend) re-firing
+      // API calls on every tab switch. IndexedStack keeps every page
+      // alive in memory and just shows/hides them.
+      body: IndexedStack(
+        index: currentIndex,
+        children: pages,
+      ),
 
       bottomNavigationBar: Container(
         decoration: BoxDecoration(

@@ -1,7 +1,55 @@
 import 'package:flutter/material.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  // FIX: previously _buildTextField created bare TextFields with no
+  // controllers at all, so there was no way to read what the user typed
+  // or pre-fill their existing info. Added controllers for each field.
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    super.dispose();
+  }
+
+  void saveChanges() {
+    if (nameController.text.trim().isEmpty) {
+      _showError("Please enter your full name");
+      return;
+    }
+    if (emailController.text.trim().isEmpty) {
+      _showError("Please enter your email");
+      return;
+    }
+
+    // TODO: replace with a real API call, e.g.
+    // await ProfileService().update(
+    //   name: nameController.text,
+    //   email: emailController.text,
+    //   phone: phoneController.text,
+    // );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Profile updated")),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +116,7 @@ class ProfilePage extends StatelessWidget {
             const SizedBox(height: 15),
 
             _buildTextField(
+              controller: nameController,
               label: "Full Name",
               icon: Icons.person_outline,
             ),
@@ -75,15 +124,19 @@ class ProfilePage extends StatelessWidget {
             const SizedBox(height: 15),
 
             _buildTextField(
+              controller: emailController,
               label: "Email",
               icon: Icons.email_outlined,
+              keyboardType: TextInputType.emailAddress,
             ),
 
             const SizedBox(height: 15),
 
             _buildTextField(
+              controller: phoneController,
               label: "Mobile Number",
               icon: Icons.phone_outlined,
+              keyboardType: TextInputType.phone,
             ),
 
             const SizedBox(height: 30),
@@ -129,7 +182,7 @@ class ProfilePage extends StatelessWidget {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: saveChanges,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueAccent,
                   shape: RoundedRectangleBorder(
@@ -154,10 +207,14 @@ class ProfilePage extends StatelessWidget {
   }
 
   static Widget _buildTextField({
+    required TextEditingController controller,
     required String label,
     required IconData icon,
+    TextInputType? keyboardType,
   }) {
     return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         prefixIcon: Icon(icon, color: Colors.white70),

@@ -29,6 +29,47 @@ class _FeedbackPageState extends State<FeedbackPage> {
   ];
 
   @override
+  void dispose() {
+    feedbackController.dispose();
+    super.dispose();
+  }
+
+  void submitFeedback() {
+    // FIX: previously onPressed: () {} did nothing and nothing stopped
+    // submitting with 0 stars or no vehicle/service selected.
+    if (selectedVehicle == null) {
+      _showError("Please select a vehicle");
+      return;
+    }
+    if (selectedService == null) {
+      _showError("Please select the completed service");
+      return;
+    }
+    if (rating == 0) {
+      _showError("Please give a star rating");
+      return;
+    }
+
+    // TODO: replace with a real API call, e.g.
+    // await FeedbackService().submit(
+    //   vehicle: selectedVehicle!,
+    //   service: selectedService!,
+    //   rating: rating,
+    //   comment: feedbackController.text,
+    // );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Feedback submitted, thank you!")),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F1A),
@@ -170,7 +211,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: submitFeedback,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueAccent,
                   shape: RoundedRectangleBorder(

@@ -32,6 +32,14 @@ class _BookingPageState extends State<BookingPage> {
   final TextEditingController timeController = TextEditingController();
   final TextEditingController noteController = TextEditingController();
 
+  @override
+  void dispose() {
+    dateController.dispose();
+    timeController.dispose();
+    noteController.dispose();
+    super.dispose();
+  }
+
   Future<void> selectDate() async {
     DateTime? picked = await showDatePicker(
       context: context,
@@ -55,6 +63,46 @@ class _BookingPageState extends State<BookingPage> {
     if (picked != null) {
       timeController.text = picked.format(context);
     }
+  }
+
+  void submitBooking() {
+    // FIX: previously onPressed: () {} did nothing at all, and nothing
+    // stopped a user from submitting a blank form. Validate first.
+    if (selectedVehicle == null) {
+      _showError("Please select a vehicle");
+      return;
+    }
+    if (selectedService == null) {
+      _showError("Please select a service type");
+      return;
+    }
+    if (dateController.text.isEmpty) {
+      _showError("Please select a preferred date");
+      return;
+    }
+    if (timeController.text.isEmpty) {
+      _showError("Please select a preferred time");
+      return;
+    }
+
+    // TODO: replace with a real API call, e.g.
+    // await BookingService().create(
+    //   vehicle: selectedVehicle!,
+    //   service: selectedService!,
+    //   date: dateController.text,
+    //   time: timeController.text,
+    //   note: noteController.text,
+    // );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Booking request submitted")),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
@@ -213,7 +261,7 @@ class _BookingPageState extends State<BookingPage> {
                     borderRadius: BorderRadius.circular(18),
                   ),
                 ),
-                onPressed: () {},
+                onPressed: submitBooking,
                 child: const Text(
                   "Submit Booking Request",
                   style: TextStyle(
