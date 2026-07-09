@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:customer_app/screens/main_screen.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -20,6 +21,15 @@ class _RegisterPageState extends State<RegisterPage> {
 
   final TextEditingController confirmPasswordController =
       TextEditingController();
+
+  @override
+  void dispose() {
+    usernameController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -172,8 +182,20 @@ class _RegisterPageState extends State<RegisterPage> {
                                 if (passwordController.text ==
                                     confirmPasswordController.text) {
 
-                                  Navigator.pushReplacementNamed(
-                                      context, "/home");
+                                  // FIX: previously this called
+                                  // Navigator.pushReplacementNamed(context, "/home"),
+                                  // which always showed username "Guest" because
+                                  // that named route is hardcoded in main.dart.
+                                  // Pushing MainScreen directly lets us pass the
+                                  // real username the user just typed in.
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => MainScreen(
+                                        username: usernameController.text,
+                                      ),
+                                    ),
+                                  );
 
                                 } else {
                                   ScaffoldMessenger.of(context)

@@ -11,6 +11,9 @@ class _ChatPageState extends State<ChatPage> {
   final TextEditingController messageController =
       TextEditingController();
 
+  // FIX: needed so we can auto-scroll to the newest message.
+  final ScrollController scrollController = ScrollController();
+
   final List<Map<String, dynamic>> messages = [
     {
       "message":
@@ -28,6 +31,39 @@ class _ChatPageState extends State<ChatPage> {
       "isCustomer": false,
     },
   ];
+
+  @override
+  void dispose() {
+    messageController.dispose();
+    scrollController.dispose();
+    super.dispose();
+  }
+
+  void _sendMessage() {
+    if (messageController.text.trim().isEmpty) return;
+
+    setState(() {
+      messages.add({
+        "message": messageController.text,
+        "isCustomer": true,
+      });
+    });
+
+    messageController.clear();
+
+    // FIX: previously the list never scrolled after sending, so a new
+    // message could land below the visible area. Wait a frame so the
+    // ListView has laid out the new item, then scroll to the bottom.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (scrollController.hasClients) {
+        scrollController.animateTo(
+          scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +136,7 @@ class _ChatPageState extends State<ChatPage> {
           // Messages
           Expanded(
             child: ListView.builder(
+              controller: scrollController,
               padding:
                   const EdgeInsets.symmetric(horizontal: 16),
 
@@ -186,21 +223,7 @@ class _ChatPageState extends State<ChatPage> {
                       Icons.send,
                       color: Colors.white,
                     ),
-                    onPressed: () {
-                      if (messageController.text
-                          .trim()
-                          .isEmpty) return;
-
-                      setState(() {
-                        messages.add({
-                          "message":
-                              messageController.text,
-                          "isCustomer": true,
-                        });
-                      });
-
-                      messageController.clear();
-                    },
+                    onPressed: _sendMessage,
                   ),
                 ),
               ],
