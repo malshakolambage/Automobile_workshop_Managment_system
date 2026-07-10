@@ -1,53 +1,81 @@
 import 'package:flutter/material.dart';
+import 'package:customer_app/services/api_service.dart';
 
-class NotificationsPage extends StatelessWidget {
+class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final notifications = [
-      {
-        "title": "Booking Confirmed",
-        "message":
-            "Your booking for Toyota Prius has been confirmed.",
-        "time": "10 mins ago",
-        "icon": Icons.check_circle,
-        "color": Colors.green,
-      },
-      {
-        "title": "Vehicle Under Repair",
-        "message":
-            "Your vehicle is currently being repaired.",
-        "time": "1 hour ago",
-        "icon": Icons.build_circle,
-        "color": Colors.orange,
-      },
-      {
-        "title": "Service Completed",
-        "message":
-            "Your vehicle service has been completed successfully.",
-        "time": "Yesterday",
-        "icon": Icons.car_repair,
-        "color": Colors.blue,
-      },
-      {
-        "title": "Leave Feedback",
-        "message":
-            "Tell us about your service experience.",
-        "time": "Yesterday",
-        "icon": Icons.star,
-        "color": Colors.amber,
-      },
-      {
-        "title": "Booking Cancelled",
-        "message":
-            "Your booking request has been cancelled.",
-        "time": "2 days ago",
-        "icon": Icons.cancel,
-        "color": Colors.redAccent,
-      },
-    ];
+  State<NotificationsPage> createState() => _NotificationsPageState();
+}
 
+class _NotificationsPageState extends State<NotificationsPage> {
+  List<dynamic> notifications = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final data = await ApiService.getNotifications();
+    if (!mounted) return;
+    setState(() {
+      notifications = data;
+      _loading = false;
+    });
+  }
+
+  Future<void> _markRead(int index) async {
+    final n = notifications[index];
+    if (n["is_read"] == 1) return;
+
+    setState(() => notifications[index]["is_read"] = 1);
+    await ApiService.markNotificationRead(n["id"] as int);
+  }
+
+  IconData _iconFor(String type) {
+    switch (type) {
+      case "success":
+        return Icons.check_circle;
+      case "warning":
+        return Icons.build_circle;
+      case "danger":
+        return Icons.cancel;
+      default:
+        return Icons.notifications;
+    }
+  }
+
+  Color _colorFor(String type) {
+    switch (type) {
+      case "success":
+        return Colors.green;
+      case "warning":
+        return Colors.orange;
+      case "danger":
+        return Colors.redAccent;
+      default:
+        return Colors.blue;
+    }
+  }
+
+  String _timeAgo(dynamic raw) {
+    if (raw == null) return "";
+    final dt = DateTime.tryParse(raw.toString());
+    if (dt == null) return "";
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return "Just now";
+    if (diff.inMinutes < 60) return "${diff.inMinutes} mins ago";
+    if (diff.inHours < 24) return "${diff.inHours} hour${diff.inHours == 1 ? '' : 's'} ago";
+    if (diff.inDays == 1) return "Yesterday";
+    return "${diff.inDays} days ago";
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F1A),
 
@@ -61,76 +89,102 @@ class NotificationsPage extends StatelessWidget {
         ),
       ),
 
-      body: ListView.builder(
-        padding: const EdgeInsets.all(20),
-        itemCount: notifications.length,
-        itemBuilder: (context, index) {
-          final notification = notifications[index];
-
-          return Container(
-            margin: const EdgeInsets.only(bottom: 15),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(.06),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.white.withOpacity(.08),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor:
-                      (notification["color"] as Color).withOpacity(.15),
-                  child: Icon(
-                    notification["icon"] as IconData,
-                    color: notification["color"] as Color,
-                  ),
-                ),
-
-                const SizedBox(width: 15),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        notification["title"] as String,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-
-                      const SizedBox(height: 6),
-
-                      Text(
-                        notification["message"] as String,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          height: 1.4,
-                        ),
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      Text(
-                        notification["time"] as String,
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 12,
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : notifications.isEmpty
+                ? ListView(
+                    children: const [
+                      SizedBox(height: 120),
+                      Center(
+                        child: Text(
+                          "No notifications yet",
+                          style: TextStyle(color: Colors.white54),
                         ),
                       ),
                     ],
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(20),
+                    itemCount: notifications.length,
+                    itemBuilder: (context, index) {
+                      final n = notifications[index];
+                      final type = (n["type"] ?? "info") as String;
+                      final isRead = n["is_read"] == 1;
+
+                      return InkWell(
+                        onTap: () => _markRead(index),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 15),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(isRead ? .04 : .08),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(.08),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CircleAvatar(
+                                radius: 24,
+                                backgroundColor: _colorFor(type).withOpacity(.15),
+                                child: Icon(
+                                  _iconFor(type),
+                                  color: _colorFor(type),
+                                ),
+                              ),
+                              const SizedBox(width: 15),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      n["title"] ?? "",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      n["message"] ?? "",
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      _timeAgo(n["created_at"]),
+                                      style: const TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (!isRead)
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  margin: const EdgeInsets.only(top: 4),
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.lightBlueAccent,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                ),
-              ],
-            ),
-          );
-        },
       ),
     );
   }

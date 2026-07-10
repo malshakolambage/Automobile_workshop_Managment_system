@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:customer_app/services/api_service.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -11,26 +12,36 @@ class _ChatPageState extends State<ChatPage> {
   final TextEditingController messageController =
       TextEditingController();
 
-  // FIX: needed so we can auto-scroll to the newest message.
   final ScrollController scrollController = ScrollController();
 
-  final List<Map<String, dynamic>> messages = [
-    {
-      "message":
-          "Hello! Your vehicle has been received for inspection.",
-      "isCustomer": false,
-    },
-    {
-      "message":
-          "Thank you. Please let me know the estimated completion time.",
-      "isCustomer": true,
-    },
-    {
-      "message":
-          "The service should be completed before 4:30 PM.",
-      "isCustomer": false,
-    },
-  ];
+  List<dynamic> messages = [];
+  int? userId;
+  bool _loading = true;
+  bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final id = await ApiService.getUserId();
+    if (id == null) {
+      setState(() => _loading = false);
+      return;
+    }
+
+    final data = await ApiService.getChatMessages(id);
+    if (!mounted) return;
+    setState(() {
+      userId = id;
+      messages = data;
+      _loading = false;
+    });
+
+    _scrollToBottom();
+  }
 
   @override
   void dispose() {
@@ -39,21 +50,7 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
-  void _sendMessage() {
-    if (messageController.text.trim().isEmpty) return;
-
-    setState(() {
-      messages.add({
-        "message": messageController.text,
-        "isCustomer": true,
-      });
-    });
-
-    messageController.clear();
-
-    // FIX: previously the list never scrolled after sending, so a new
-    // message could land below the visible area. Wait a frame so the
-    // ListView has laid out the new item, then scroll to the bottom.
+  void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (scrollController.hasClients) {
         scrollController.animateTo(
@@ -63,6 +60,35 @@ class _ChatPageState extends State<ChatPage> {
         );
       }
     });
+  }
+
+  Future<void> _sendMessage() async {
+    final text = messageController.text.trim();
+    if (text.isEmpty || userId == null || _sending) return;
+
+    setState(() => _sending = true);
+    messageController.clear();
+
+    final result = await ApiService.sendChatMessage(userId!, text);
+
+    if (!mounted) return;
+    setState(() => _sending = false);
+
+    if (result['error'] != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['error'])),
+      );
+      return;
+    }
+
+    setState(() {
+      messages.add({
+        "message": text,
+        "sender": "customer",
+      });
+    });
+
+    _scrollToBottom();
   }
 
   @override
@@ -75,12 +101,17 @@ class _ChatPageState extends State<ChatPage> {
         elevation: 0,
         foregroundColor: Colors.white,
         title: const Text("Workshop Chat"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _load,
+          ),
+        ],
       ),
 
       body: Column(
         children: [
 
-          // Workshop Info Card
           Container(
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(16),
@@ -133,9 +164,17 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
 
-          // Messages
           Expanded(
-            child: ListView.builder(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : messages.isEmpty
+                    ? const Center(
+                        child: Text(
+                          "No messages yet. Say hello!",
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      )
+                    : ListView.builder(
               controller: scrollController,
               padding:
                   const EdgeInsets.symmetric(horizontal: 16),
@@ -144,9 +183,10 @@ class _ChatPageState extends State<ChatPage> {
 
               itemBuilder: (context, index) {
                 final message = messages[index];
+                final isCustomer = message["sender"] == "customer";
 
                 return Align(
-                  alignment: message["isCustomer"]
+                  alignment: isCustomer
                       ? Alignment.centerRight
                       : Alignment.centerLeft,
 
@@ -160,7 +200,7 @@ class _ChatPageState extends State<ChatPage> {
                     ),
 
                     decoration: BoxDecoration(
-                      color: message["isCustomer"]
+                      color: isCustomer
                           ? Colors.blueAccent
                           : Colors.white.withOpacity(0.08),
 
@@ -169,7 +209,7 @@ class _ChatPageState extends State<ChatPage> {
                     ),
 
                     child: Text(
-                      message["message"],
+                      message["message"] ?? "",
                       style: const TextStyle(
                         color: Colors.white,
                       ),
@@ -180,7 +220,6 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
 
-          // Message Input
           Container(
             padding: const EdgeInsets.all(16),
 
@@ -219,10 +258,19 @@ class _ChatPageState extends State<ChatPage> {
                 CircleAvatar(
                   backgroundColor: Colors.blueAccent,
                   child: IconButton(
-                    icon: const Icon(
-                      Icons.send,
-                      color: Colors.white,
-                    ),
+                    icon: _sending
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.send,
+                            color: Colors.white,
+                          ),
                     onPressed: _sendMessage,
                   ),
                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:customer_app/services/api_service.dart';
 
 class BookingPage extends StatefulWidget {
   const BookingPage({super.key});
@@ -8,14 +9,12 @@ class BookingPage extends StatefulWidget {
 }
 
 class _BookingPageState extends State<BookingPage> {
-  String? selectedVehicle;
+  int? selectedVehicleId;
   String? selectedService;
 
-  final List<String> vehicles = [
-    "Toyota Prius - ABC 1234",
-    "Honda Fit - CAA 4567",
-    "Suzuki Alto - CAB 9876",
-  ];
+  List<dynamic> vehicles = [];
+  bool _loadingVehicles = true;
+  bool _submitting = false;
 
   final List<String> services = [
     "Full Service",
@@ -31,6 +30,23 @@ class _BookingPageState extends State<BookingPage> {
   final TextEditingController dateController = TextEditingController();
   final TextEditingController timeController = TextEditingController();
   final TextEditingController noteController = TextEditingController();
+
+  DateTime? _pickedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVehicles();
+  }
+
+  Future<void> _loadVehicles() async {
+    final data = await ApiService.getVehicles();
+    if (!mounted) return;
+    setState(() {
+      vehicles = data;
+      _loadingVehicles = false;
+    });
+  }
 
   @override
   void dispose() {
@@ -49,6 +65,7 @@ class _BookingPageState extends State<BookingPage> {
     );
 
     if (picked != null) {
+      _pickedDate = picked;
       dateController.text =
           "${picked.day}/${picked.month}/${picked.year}";
     }
@@ -65,18 +82,18 @@ class _BookingPageState extends State<BookingPage> {
     }
   }
 
-  void submitBooking() {
-    // FIX: previously onPressed: () {} did nothing at all, and nothing
-    // stopped a user from submitting a blank form. Validate first.
-    if (selectedVehicle == null) {
-      _showError("Please select a vehicle");
+  Future<void> submitBooking() async {
+    if (selectedVehicleId == null) {
+      _showError(vehicles.isEmpty
+          ? "Add a vehicle in your Profile first"
+          : "Please select a vehicle");
       return;
     }
     if (selectedService == null) {
       _showError("Please select a service type");
       return;
     }
-    if (dateController.text.isEmpty) {
+    if (_pickedDate == null) {
       _showError("Please select a preferred date");
       return;
     }
@@ -85,18 +102,40 @@ class _BookingPageState extends State<BookingPage> {
       return;
     }
 
-    // TODO: replace with a real API call, e.g.
-    // await BookingService().create(
-    //   vehicle: selectedVehicle!,
-    //   service: selectedService!,
-    //   date: dateController.text,
-    //   time: timeController.text,
-    //   note: noteController.text,
-    // );
+    setState(() => _submitting = true);
+
+    // Backend wants an ISO date (YYYY-MM-DD)
+    final iso =
+        "${_pickedDate!.year.toString().padLeft(4, '0')}-${_pickedDate!.month.toString().padLeft(2, '0')}-${_pickedDate!.day.toString().padLeft(2, '0')}";
+
+    final result = await ApiService.createAppointment(
+      vehicleId: selectedVehicleId!,
+      serviceType: selectedService!,
+      appointmentDate: iso,
+      appointmentTime: timeController.text,
+      notes: noteController.text.trim().isEmpty ? null : noteController.text.trim(),
+    );
+
+    if (!mounted) return;
+    setState(() => _submitting = false);
+
+    if (result['error'] != null) {
+      _showError(result['error']);
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Booking request submitted")),
     );
+
+    setState(() {
+      selectedVehicleId = null;
+      selectedService = null;
+      dateController.clear();
+      timeController.clear();
+      noteController.clear();
+      _pickedDate = null;
+    });
   }
 
   void _showError(String message) {
@@ -120,7 +159,9 @@ class _BookingPageState extends State<BookingPage> {
         ),
       ),
 
-      body: SingleChildScrollView(
+      body: _loadingVehicles
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,23 +177,37 @@ class _BookingPageState extends State<BookingPage> {
 
             const SizedBox(height: 10),
 
-            DropdownButtonFormField<String>(
-              dropdownColor: const Color(0xFF1A1A2E),
-              value: selectedVehicle,
-              style: const TextStyle(color: Colors.white),
-              decoration: inputDecoration(),
-              items: vehicles.map((vehicle) {
-                return DropdownMenuItem(
-                  value: vehicle,
-                  child: Text(vehicle),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  selectedVehicle = value;
-                });
-              },
-            ),
+            if (vehicles.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(.06),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Text(
+                  "No vehicles on your account yet. Add one from the Profile tab first.",
+                  style: TextStyle(color: Colors.white70),
+                ),
+              )
+            else
+              DropdownButtonFormField<int>(
+                dropdownColor: const Color(0xFF1A1A2E),
+                value: selectedVehicleId,
+                style: const TextStyle(color: Colors.white),
+                decoration: inputDecoration(),
+                items: vehicles.map<DropdownMenuItem<int>>((v) {
+                  final label = "${v['model']} - ${v['plate_number']}";
+                  return DropdownMenuItem<int>(
+                    value: v['id'] as int,
+                    child: Text(label),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedVehicleId = value;
+                  });
+                },
+              ),
 
             const SizedBox(height: 20),
 
@@ -261,14 +316,23 @@ class _BookingPageState extends State<BookingPage> {
                     borderRadius: BorderRadius.circular(18),
                   ),
                 ),
-                onPressed: submitBooking,
-                child: const Text(
-                  "Submit Booking Request",
-                  style: TextStyle(
-                    fontSize: 17,
-                    color: Colors.white,
-                  ),
-                ),
+                onPressed: _submitting ? null : submitBooking,
+                child: _submitting
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        "Submit Booking Request",
+                        style: TextStyle(
+                          fontSize: 17,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
           ],

@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:customer_app/screens/main_screen.dart';
+import 'package:customer_app/services/api_service.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -16,16 +17,22 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController emailController =
       TextEditingController();
 
+  final TextEditingController phoneController =
+      TextEditingController();
+
   final TextEditingController passwordController =
       TextEditingController();
 
   final TextEditingController confirmPasswordController =
       TextEditingController();
 
+  bool _isLoading = false;
+
   @override
   void dispose() {
     usernameController.dispose();
     emailController.dispose();
+    phoneController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
     super.dispose();
@@ -37,7 +44,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
       body: Container(
 
-        // 🔥 PREMIUM NAVY GRADIENT
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -89,7 +95,6 @@ class _RegisterPageState extends State<RegisterPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
 
-                        // 🔥 ICON
                         Container(
                           padding: const EdgeInsets.all(18),
 
@@ -107,7 +112,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
                         const SizedBox(height: 25),
 
-                        // TITLE
                         const Text(
                           "Create Account",
                           style: TextStyle(
@@ -129,7 +133,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
                         const SizedBox(height: 30),
 
-                        //  USERNAME
                         _buildField(
                           controller: usernameController,
                           hint: "Username",
@@ -138,16 +141,24 @@ class _RegisterPageState extends State<RegisterPage> {
 
                         const SizedBox(height: 16),
 
-                        //  EMAIL
                         _buildField(
                           controller: emailController,
                           hint: "Email",
                           icon: Icons.email,
+                          keyboardType: TextInputType.emailAddress,
                         ),
 
                         const SizedBox(height: 16),
 
-                        //  PASSWORD
+                        _buildField(
+                          controller: phoneController,
+                          hint: "Mobile Number",
+                          icon: Icons.phone,
+                          keyboardType: TextInputType.phone,
+                        ),
+
+                        const SizedBox(height: 16),
+
                         _buildField(
                           controller: passwordController,
                           hint: "Password",
@@ -157,7 +168,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
                         const SizedBox(height: 16),
 
-                        // 🔥 CONFIRM PASSWORD
                         _buildField(
                           controller: confirmPasswordController,
                           hint: "Confirm Password",
@@ -167,35 +177,57 @@ class _RegisterPageState extends State<RegisterPage> {
 
                         const SizedBox(height: 30),
 
-                        //  REGISTER BUTTON
                         SizedBox(
                           width: double.infinity,
                           height: 55,
 
                           child: ElevatedButton(
-                            onPressed: () {
+                            onPressed: _isLoading
+                                ? null
+                                : () async {
                               if (usernameController.text.isNotEmpty &&
                                   emailController.text.isNotEmpty &&
+                                  phoneController.text.isNotEmpty &&
                                   passwordController.text.isNotEmpty &&
                                   confirmPasswordController.text.isNotEmpty) {
 
                                 if (passwordController.text ==
                                     confirmPasswordController.text) {
 
-                                  // FIX: previously this called
-                                  // Navigator.pushReplacementNamed(context, "/home"),
-                                  // which always showed username "Guest" because
-                                  // that named route is hardcoded in main.dart.
-                                  // Pushing MainScreen directly lets us pass the
-                                  // real username the user just typed in.
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => MainScreen(
-                                        username: usernameController.text,
-                                      ),
-                                    ),
+                                  setState(() => _isLoading = true);
+
+                                  final result = await ApiService.register(
+                                    name: usernameController.text.trim(),
+                                    email: emailController.text.trim(),
+                                    phone: phoneController.text.trim(),
+                                    password: passwordController.text,
                                   );
+
+                                  if (!mounted) return;
+                                  setState(() => _isLoading = false);
+
+                                  if (result['token'] != null) {
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => MainScreen(
+                                          username:
+                                              result['user']['name'] ??
+                                                  usernameController.text,
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          result['error'] ??
+                                              'Registration failed',
+                                        ),
+                                      ),
+                                    );
+                                  }
 
                                 } else {
                                   ScaffoldMessenger.of(context)
@@ -236,19 +268,30 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                             ),
 
-                            child: const Text(
-                              "Create Account",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.4,
+                                      valueColor:
+                                          AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : const Text(
+                                    "Create Account",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                           ),
                         ),
 
                         const SizedBox(height: 18),
 
-                        //BACK TO LOGIN
                         TextButton(
                           onPressed: () {
                             Navigator.pop(context);
@@ -272,16 +315,17 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  //  FIELD WIDGET
   Widget _buildField({
     required TextEditingController controller,
     required String hint,
     required IconData icon,
     bool obscure = false,
+    TextInputType? keyboardType,
   }) {
     return TextField(
       controller: controller,
       obscureText: obscure,
+      keyboardType: keyboardType,
       style: const TextStyle(color: Colors.white),
 
       decoration: InputDecoration(

@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'package:customer_app/screens/main_screen.dart';
+import 'package:customer_app/services/api_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,6 +19,8 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController passwordController =
       TextEditingController();
 
+  bool _isLoading = false;
+
   @override
   void dispose() {
     usernameController.dispose();
@@ -32,7 +35,6 @@ class _LoginPageState extends State<LoginPage> {
 
       body: Container(
 
-        // 
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -84,7 +86,6 @@ class _LoginPageState extends State<LoginPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
 
-                        // ICON
                         Container(
                           padding: const EdgeInsets.all(18),
 
@@ -102,7 +103,6 @@ class _LoginPageState extends State<LoginPage> {
 
                         const SizedBox(height: 25),
 
-                        //  TITLE
                         const Text(
                           "Welcome Back",
                           style: TextStyle(
@@ -124,23 +124,23 @@ class _LoginPageState extends State<LoginPage> {
 
                         const SizedBox(height: 30),
 
-                        //  USERNAME FIELD
                         TextField(
                           controller: usernameController,
+                          keyboardType: TextInputType.emailAddress,
 
                           style: const TextStyle(
                             color: Colors.white,
                           ),
 
                           decoration: InputDecoration(
-                            hintText: "Username",
+                            hintText: "Email",
 
                             hintStyle: const TextStyle(
                               color: Colors.white54,
                             ),
 
                             prefixIcon: const Icon(
-                              Icons.person,
+                              Icons.email,
                               color: Colors.white70,
                             ),
 
@@ -159,7 +159,6 @@ class _LoginPageState extends State<LoginPage> {
 
                         const SizedBox(height: 18),
 
-                        // PASSWORD FIELD
                         TextField(
                           controller: passwordController,
                           obscureText: true,
@@ -195,7 +194,6 @@ class _LoginPageState extends State<LoginPage> {
 
                         const SizedBox(height: 30),
 
-                        //  LOGIN BUTTON
                         SizedBox(
                           width: double.infinity,
                           height: 55,
@@ -220,56 +218,90 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ),
 
-                            onPressed: () {
+                            onPressed: _isLoading
+                                ? null
+                                : () async {
+                                    if (usernameController
+                                            .text.isEmpty ||
+                                        passwordController
+                                            .text.isEmpty) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          backgroundColor:
+                                              Colors.red.shade400,
+                                          content: const Text(
+                                            "Enter email and password",
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
 
-                              if (usernameController
-                                      .text.isNotEmpty &&
-                                  passwordController
-                                      .text.isNotEmpty) {
+                                    setState(() => _isLoading = true);
 
-                                Navigator.pushReplacement(
-                                  context,
+                                    final result =
+                                        await ApiService.login(
+                                      usernameController.text.trim(),
+                                      passwordController.text,
+                                    );
 
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        MainScreen(
-                                      username:
-                                          usernameController.text,
+                                    if (!mounted) return;
+                                    setState(() => _isLoading = false);
+
+                                    if (result['token'] != null) {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              MainScreen(
+                                            username:
+                                                result['user']['name'] ??
+                                                    usernameController
+                                                        .text,
+                                          ),
+                                        ),
+                                      );
+                                    } else {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          backgroundColor:
+                                              Colors.red.shade400,
+                                          content: Text(
+                                            result['error'] ??
+                                                'Login failed',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.4,
+                                      valueColor:
+                                          AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : const Text(
+                                    "Login",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      letterSpacing: 0.5,
                                     ),
                                   ),
-                                );
-
-                              } else {
-
-                                ScaffoldMessenger.of(context)
-                                    .showSnackBar(
-
-                                  SnackBar(
-                                    backgroundColor:
-                                        Colors.red.shade400,
-
-                                    content: const Text(
-                                      "Enter username and password",
-                                    ),
-                                  ),
-                                );
-                              }
-                            },
-
-                            child: const Text(
-                              "Login",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
                           ),
                         ),
 
                         const SizedBox(height: 16),
 
-                        //  REGISTER BUTTON
                         SizedBox(
                           width: double.infinity,
                           height: 55,

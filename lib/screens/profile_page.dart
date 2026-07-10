@@ -1,4 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:customer_app/services/api_service.dart';
+import 'package:customer_app/screens/welcome_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -8,12 +12,47 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  // FIX: previously _buildTextField created bare TextFields with no
-  // controllers at all, so there was no way to read what the user typed
-  // or pre-fill their existing info. Added controllers for each field.
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
+
+  List<dynamic> vehicles = [];
+  String? _profileImagePath;
+  bool _loading = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    // Pull the latest name/email/phone straight from the server so the
+    // form always reflects what's actually saved there.
+    final me = await ApiService.getMe();
+
+    if (me['error'] == null) {
+      nameController.text = me['name'] ?? '';
+      emailController.text = me['email'] ?? '';
+      phoneController.text = me['phone'] ?? '';
+    } else {
+      // Fall back to whatever we last cached locally if the server is unreachable.
+      nameController.text = await ApiService.getUserName() ?? '';
+      emailController.text = await ApiService.getUserEmail() ?? '';
+      phoneController.text = await ApiService.getUserPhone() ?? '';
+    }
+
+    final vehicleData = await ApiService.getVehicles();
+    final imagePath = await ApiService.getProfileImagePath();
+
+    if (!mounted) return;
+    setState(() {
+      vehicles = vehicleData;
+      _profileImagePath = imagePath;
+      _loading = false;
+    });
+  }
 
   @override
   void dispose() {
@@ -23,31 +62,137 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
-  void saveChanges() {
-    if (nameController.text.trim().isEmpty) {
+  Future<void> saveChanges() async {
+    final name = nameController.text.trim();
+    final email = emailController.text.trim();
+    final phone = phoneController.text.trim();
+
+    if (name.isEmpty) {
       _showError("Please enter your full name");
       return;
     }
-    if (emailController.text.trim().isEmpty) {
+    if (email.isEmpty) {
       _showError("Please enter your email");
       return;
     }
 
-    // TODO: replace with a real API call, e.g.
-    // await ProfileService().update(
-    //   name: nameController.text,
-    //   email: emailController.text,
-    //   phone: phoneController.text,
-    // );
+    setState(() => _saving = true);
+
+    final res = await ApiService.updateProfile(
+      name: name,
+      email: email,
+      phone: phone.isEmpty ? null : phone,
+    );
+
+    if (!mounted) return;
+    setState(() => _saving = false);
+
+    if (res['error'] != null) {
+      _showError(res['error']);
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Profile updated")),
     );
   }
 
+
+  Future<void> _pickProfileImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+      maxWidth: 800,
+    );
+
+    if (picked == null) return;
+
+    await ApiService.saveProfileImagePath(picked.path);
+
+    if (!mounted) return;
+    setState(() => _profileImagePath = picked.path);
+  }
+
+  Future<void> _addVehicle() async {
+    final modelController = TextEditingController();
+    final plateController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        title: const Text("Add Vehicle", style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: modelController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: "Model (e.g. Toyota Prius)",
+                labelStyle: TextStyle(color: Colors.white70),
+              ),
+            ),
+            TextField(
+              controller: plateController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: "Plate Number",
+                labelStyle: TextStyle(color: Colors.white70),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Add"),
+          ),
+        ],
+      ),
+    );
+
+    if (result != true) return;
+    if (modelController.text.trim().isEmpty || plateController.text.trim().isEmpty) {
+      _showError("Model and plate number are required");
+      return;
+    }
+
+    final res = await ApiService.addVehicle(
+      model: modelController.text.trim(),
+      plateNumber: plateController.text.trim(),
+    );
+
+    if (!mounted) return;
+
+    if (res['error'] != null) {
+      _showError(res['error']);
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Vehicle added")),
+    );
+    _load();
+  }
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _logout() async {
+    await ApiService.logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const WelcomePage()),
+      (route) => false,
     );
   }
 
@@ -66,39 +211,54 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white70),
+            onPressed: _logout,
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// Profile Image
             Center(
-              child: Stack(
-                children: [
-                  const CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Color(0xFF1E2D47),
-                    child: Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: 50,
+              child: GestureDetector(
+                onTap: _pickProfileImage,
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: const Color(0xFF1E2D47),
+                      backgroundImage: _profileImagePath != null
+                          ? FileImage(File(_profileImagePath!))
+                          : null,
+                      child: _profileImagePath == null
+                          ? const Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 50,
+                            )
+                          : null,
                     ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.blue,
-                      child: const Icon(
-                        Icons.edit,
-                        color: Colors.white,
-                        size: 16,
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.blue,
+                        child: const Icon(
+                          Icons.edit,
+                          color: Colors.white,
+                          size: 16,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
 
@@ -141,13 +301,22 @@ class _ProfilePageState extends State<ProfilePage> {
 
             const SizedBox(height: 30),
 
-            const Text(
-              "My Vehicles",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "My Vehicles",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+                Text(
+                  "${vehicles.length}/3",
+                  style: const TextStyle(color: Colors.white54),
+                ),
+              ],
             ),
 
             const SizedBox(height: 15),
@@ -160,19 +329,14 @@ class _ProfilePageState extends State<ProfilePage> {
               crossAxisSpacing: 15,
               childAspectRatio: 0.95,
               children: [
-                _vehicleCard(
-                  color: const Color(0xFFFFB74D),
-                  icon: Icons.directions_car,
-                  title: "Toyota Prius",
-                  plate: "ABC-1234",
-                ),
-                _vehicleCard(
-                  color: Colors.greenAccent,
-                  icon: Icons.electric_car,
-                  title: "Honda Fit",
-                  plate: "CAA-4587",
-                ),
-                _addVehicleCard(),
+                for (int i = 0; i < vehicles.length; i++)
+                  _vehicleCard(
+                    color: _vehicleColors[i % _vehicleColors.length],
+                    icon: Icons.directions_car,
+                    title: vehicles[i]["model"] ?? "Vehicle",
+                    plate: vehicles[i]["plate_number"] ?? "",
+                  ),
+                if (vehicles.length < 3) _addVehicleCard(_addVehicle),
               ],
             ),
 
@@ -182,20 +346,29 @@ class _ProfilePageState extends State<ProfilePage> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: saveChanges,
+                onPressed: _saving ? null : saveChanges,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueAccent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),
                 ),
-                child: const Text(
-                  "Save Changes",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white,
-                  ),
-                ),
+                child: _saving
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        "Save Changes",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
 
@@ -205,6 +378,12 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
+
+  static const _vehicleColors = [
+    Color(0xFFFFB74D),
+    Colors.greenAccent,
+    Colors.lightBlueAccent,
+  ];
 
   static Widget _buildTextField({
     required TextEditingController controller,
@@ -281,9 +460,9 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  static Widget _addVehicleCard() {
+  static Widget _addVehicleCard(VoidCallback onTap) {
     return InkWell(
-      onTap: () {},
+      onTap: onTap,
       borderRadius: BorderRadius.circular(22),
       child: Container(
         decoration: BoxDecoration(

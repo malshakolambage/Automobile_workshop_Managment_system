@@ -1,6 +1,7 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
+
+import 'package:customer_app/services/api_service.dart';
 
 import 'booking_page.dart';
 import 'history_page.dart';
@@ -13,11 +14,9 @@ import 'profile_page.dart';
 
 import '../widgets/dashboard_card.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
 
   final String username;
-
-  final bool hasActiveService = true;
 
   const HomePage({
     super.key,
@@ -25,7 +24,50 @@ class HomePage extends StatelessWidget {
   });
 
   @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  Map<String, dynamic>? activeAppointment;
+  bool _loading = true;
+  late String _displayName;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start with whatever was passed in (e.g. straight after login), then
+    // refresh from the locally cached profile in case it was edited since.
+    _displayName = widget.username;
+    _loadUserName();
+    _loadActiveService();
+  }
+
+  Future<void> _loadUserName() async {
+    final name = await ApiService.getUserName();
+    if (!mounted) return;
+    if (name != null && name.isNotEmpty) {
+      setState(() => _displayName = name);
+    }
+  }
+
+  Future<void> _loadActiveService() async {
+    final appointments = await ApiService.getAppointments();
+    final active = appointments.cast<Map<String, dynamic>>().firstWhere(
+          (a) => a["status"] == "Approved" && a["progress"] != "Ready for Pickup",
+          orElse: () => {},
+        );
+
+    if (!mounted) return;
+    setState(() {
+      activeAppointment = active.isEmpty ? null : active;
+      _loading = false;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+
+    final hasActiveService = activeAppointment != null;
 
     return Scaffold(
 
@@ -72,7 +114,7 @@ class HomePage extends StatelessWidget {
                           children: [
 
                             Text(
-                              "Welcome  $username ",
+                              "Welcome  $_displayName ",
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 28,
@@ -101,7 +143,7 @@ class HomePage extends StatelessWidget {
                               MaterialPageRoute(
                                 builder: (context) => const ProfilePage(),
                               ),
-                            );
+                            ).then((_) => _loadUserName());
                           },
 
                           child: Container(
@@ -142,7 +184,7 @@ class HomePage extends StatelessWidget {
                                 builder: (context) =>
                                     const TrackingPage(),
                               ),
-                            );
+                            ).then((_) => _loadActiveService());
 
                           }
                         : null,
@@ -230,9 +272,11 @@ class HomePage extends StatelessWidget {
 
                                   Text(
 
-                                    hasActiveService
-                                        ? "Toyota Prius - Engine Repair"
-                                        : "No ongoing repairs",
+                                    _loading
+                                        ? "Checking..."
+                                        : hasActiveService
+                                            ? "${activeAppointment!['model'] ?? 'Vehicle'} - ${activeAppointment!['service_type'] ?? ''}"
+                                            : "No ongoing repairs",
 
 
                                     style: const TextStyle(
@@ -256,11 +300,11 @@ class HomePage extends StatelessWidget {
 
                                   if(hasActiveService)
 
-                                  const Text(
+                                  Text(
 
-                                    "Repair in progress • Tap to track",
+                                    "${activeAppointment!['progress'] ?? 'In progress'} • Tap to track",
 
-                                    style: TextStyle(
+                                    style: const TextStyle(
 
                                       color:
                                           Colors.greenAccent,
@@ -370,7 +414,7 @@ class HomePage extends StatelessWidget {
                             MaterialPageRoute(
                               builder: (context) => const BookingPage(),
                             ),
-                          );
+                          ).then((_) => _loadActiveService());
                         },
                       ),
 

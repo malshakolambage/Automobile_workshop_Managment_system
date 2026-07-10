@@ -3,6 +3,7 @@ import 'screens/welcome_page.dart';
 import 'screens/auth/login_page.dart';
 import 'screens/auth/register_page.dart';
 import 'screens/main_screen.dart';
+import 'services/api_service.dart';
 
 void main() {
   runApp(MyApp());
@@ -25,16 +26,42 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-      initialRoute: "/",
+      home: const _StartupGate(),
 
       routes: {
-        "/": (context) => const WelcomePage(),
         "/login": (context) => const LoginPage(),
         "/register": (context) => const RegisterPage(),
-        // NOTE: MainScreen requires a username, so this route only works
-        // if you navigate with arguments (see login/register pages, which
-        // now push MainScreen directly instead of using this route).
         "/home": (context) => const MainScreen(username: "Guest"),
+      },
+    );
+  }
+}
+
+class _StartupGate extends StatelessWidget {
+  const _StartupGate();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: ApiService.isLoggedIn(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Scaffold(
+            backgroundColor: Color(0xFF071120),
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.data == true) {
+          return FutureBuilder<String?>(
+            future: ApiService.getUserName(),
+            builder: (context, nameSnapshot) {
+              return MainScreen(username: nameSnapshot.data ?? "Guest");
+            },
+          );
+        }
+
+        return const WelcomePage();
       },
     );
   }

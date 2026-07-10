@@ -100,7 +100,6 @@ class _DashboardCardState extends State<DashboardCard> {
 
                 child: Stack(
                   children: [
-                    // Top glossy highlight
                     Positioned(
                       top: -40,
                       left: -30,
@@ -114,7 +113,6 @@ class _DashboardCardState extends State<DashboardCard> {
                       ),
                     ),
 
-                    // Bottom glow
                     Positioned(
                       bottom: -40,
                       right: -40,
@@ -135,7 +133,6 @@ class _DashboardCardState extends State<DashboardCard> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
 
-                          // Center Icon Circle
                           Container(
                             width: 48,
                             height: 48,
