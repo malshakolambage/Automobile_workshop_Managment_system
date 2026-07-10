@@ -29,7 +29,6 @@ class WelcomePage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
 
-                  //  LOGO 
                   ClipRRect(
                     borderRadius: BorderRadius.circular(30),
 
@@ -60,7 +59,6 @@ class WelcomePage extends StatelessWidget {
                           ],
                         ),
 
-                        // 
                           child: Center(
                             child: Image.asset(
                               "assets/images/logo.png",
@@ -75,7 +73,6 @@ class WelcomePage extends StatelessWidget {
 
                   const SizedBox(height: 40),
 
-                  // APP 
                   const Text(
                     "AutoNex",
                     style: TextStyle(
@@ -88,7 +85,6 @@ class WelcomePage extends StatelessWidget {
 
                   const SizedBox(height: 12),
 
-                  // SUB
                   const Text(
                     "Premium Vehicle Workshop\nManagement System",
                     textAlign: TextAlign.center,
@@ -101,7 +97,6 @@ class WelcomePage extends StatelessWidget {
 
                   const SizedBox(height: 50),
 
-                  // BUTTON
                   SizedBox(
                     width: double.infinity,
                     height: 58,

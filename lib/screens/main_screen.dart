@@ -34,11 +34,9 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F1A),
 
-      // FIX: was `body: pages[currentIndex]`, which destroys and rebuilds
-      // the selected page every time you switch tabs — losing scroll
-      // position, form input, and (once wired to a backend) re-firing
-      // API calls on every tab switch. IndexedStack keeps every page
-      // alive in memory and just shows/hides them.
+      // IndexedStack keeps every tab's page alive in memory instead of
+      // rebuilding it on every switch, so scroll position / loaded data
+      // from the API survives tab changes.
       body: IndexedStack(
         index: currentIndex,
         children: pages,

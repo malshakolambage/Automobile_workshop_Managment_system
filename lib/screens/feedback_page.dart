@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:customer_app/services/api_service.dart';
 
 class FeedbackPage extends StatefulWidget {
   const FeedbackPage({super.key});
@@ -8,25 +9,44 @@ class FeedbackPage extends StatefulWidget {
 }
 
 class _FeedbackPageState extends State<FeedbackPage> {
-  String? selectedVehicle;
-  String? selectedService;
+  int? selectedVehicleId;
+  int? selectedAppointmentId;
 
   int rating = 0;
 
   final TextEditingController feedbackController = TextEditingController();
 
-  final vehicles = [
-    "Toyota Prius",
-    "Honda Fit",
-    "Suzuki Alto",
-  ];
+  List<dynamic> vehicles = [];
+  List<dynamic> completedAppointments = [];
+  List<dynamic> previousReviews = [];
 
-  final services = [
-    "Full Service",
-    "Oil Change",
-    "Brake Service",
-    "Engine Repair",
-  ];
+  bool _loading = true;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+
+    final results = await Future.wait([
+      ApiService.getVehicles(),
+      ApiService.getAppointments(),
+      ApiService.getFeedbackList(),
+    ]);
+
+    if (!mounted) return;
+    setState(() {
+      vehicles = results[0];
+      completedAppointments =
+          results[1].where((a) => a["status"] == "Completed").toList();
+      previousReviews = results[2];
+      _loading = false;
+    });
+  }
 
   @override
   void dispose() {
@@ -34,14 +54,12 @@ class _FeedbackPageState extends State<FeedbackPage> {
     super.dispose();
   }
 
-  void submitFeedback() {
-    // FIX: previously onPressed: () {} did nothing and nothing stopped
-    // submitting with 0 stars or no vehicle/service selected.
-    if (selectedVehicle == null) {
+  Future<void> submitFeedback() async {
+    if (selectedVehicleId == null) {
       _showError("Please select a vehicle");
       return;
     }
-    if (selectedService == null) {
+    if (selectedAppointmentId == null) {
       _showError("Please select the completed service");
       return;
     }
@@ -50,17 +68,37 @@ class _FeedbackPageState extends State<FeedbackPage> {
       return;
     }
 
-    // TODO: replace with a real API call, e.g.
-    // await FeedbackService().submit(
-    //   vehicle: selectedVehicle!,
-    //   service: selectedService!,
-    //   rating: rating,
-    //   comment: feedbackController.text,
-    // );
+    setState(() => _submitting = true);
+
+    final result = await ApiService.submitFeedback(
+      vehicleId: selectedVehicleId,
+      appointmentId: selectedAppointmentId,
+      rating: rating,
+      comment: feedbackController.text.trim().isEmpty
+          ? null
+          : feedbackController.text.trim(),
+    );
+
+    if (!mounted) return;
+    setState(() => _submitting = false);
+
+    if (result['error'] != null) {
+      _showError(result['error']);
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Feedback submitted, thank you!")),
     );
+
+    setState(() {
+      selectedVehicleId = null;
+      selectedAppointmentId = null;
+      rating = 0;
+      feedbackController.clear();
+    });
+
+    _load();
   }
 
   void _showError(String message) {
@@ -84,7 +122,9 @@ class _FeedbackPageState extends State<FeedbackPage> {
         ),
       ),
 
-      body: SingleChildScrollView(
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,20 +176,20 @@ class _FeedbackPageState extends State<FeedbackPage> {
 
             const SizedBox(height: 8),
 
-            DropdownButtonFormField<String>(
+            DropdownButtonFormField<int>(
               dropdownColor: const Color(0xFF1A1A2E),
               decoration: _inputDecoration(),
-              value: selectedVehicle,
+              value: selectedVehicleId,
               style: const TextStyle(color: Colors.white),
-              items: vehicles.map((vehicle) {
-                return DropdownMenuItem(
-                  value: vehicle,
-                  child: Text(vehicle),
+              items: vehicles.map<DropdownMenuItem<int>>((v) {
+                return DropdownMenuItem<int>(
+                  value: v['id'] as int,
+                  child: Text("${v['model']} - ${v['plate_number']}"),
                 );
               }).toList(),
               onChanged: (value) {
                 setState(() {
-                  selectedVehicle = value;
+                  selectedVehicleId = value;
                 });
               },
             ),
@@ -166,23 +206,37 @@ class _FeedbackPageState extends State<FeedbackPage> {
 
             const SizedBox(height: 8),
 
-            DropdownButtonFormField<String>(
-              dropdownColor: const Color(0xFF1A1A2E),
-              decoration: _inputDecoration(),
-              value: selectedService,
-              style: const TextStyle(color: Colors.white),
-              items: services.map((service) {
-                return DropdownMenuItem(
-                  value: service,
-                  child: Text(service),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  selectedService = value;
-                });
-              },
-            ),
+            completedAppointments.isEmpty
+                ? Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(.06),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Text(
+                      "No completed services yet to review.",
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  )
+                : DropdownButtonFormField<int>(
+                    dropdownColor: const Color(0xFF1A1A2E),
+                    decoration: _inputDecoration(),
+                    value: selectedAppointmentId,
+                    style: const TextStyle(color: Colors.white),
+                    items: completedAppointments.map<DropdownMenuItem<int>>((a) {
+                      final label =
+                          "${a['service_type']} • ${_formatDate(a['appointment_date'])}";
+                      return DropdownMenuItem<int>(
+                        value: a['id'] as int,
+                        child: Text(label),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedAppointmentId = value;
+                      });
+                    },
+                  ),
 
             const SizedBox(height: 20),
 
@@ -211,17 +265,26 @@ class _FeedbackPageState extends State<FeedbackPage> {
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
-                onPressed: submitFeedback,
+                onPressed: _submitting ? null : submitFeedback,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueAccent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),
                 ),
-                child: const Text(
-                  "Submit Feedback",
-                  style: TextStyle(fontSize: 16),
-                ),
+                child: _submitting
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        "Submit Feedback",
+                        style: TextStyle(fontSize: 16),
+                      ),
               ),
             ),
 
@@ -238,15 +301,34 @@ class _FeedbackPageState extends State<FeedbackPage> {
 
             const SizedBox(height: 15),
 
-            _reviewCard(),
-
-            const SizedBox(height: 15),
-
-            _reviewCard(),
+            if (previousReviews.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text(
+                  "You haven't left any reviews yet.",
+                  style: TextStyle(color: Colors.white54),
+                ),
+              )
+            else
+              ...previousReviews.map((r) => Padding(
+                    padding: const EdgeInsets.only(bottom: 15),
+                    child: _reviewCard(r),
+                  )),
           ],
         ),
       ),
     );
+  }
+
+  static String _formatDate(dynamic raw) {
+    if (raw == null) return "-";
+    final s = raw.toString();
+    final datePart = s.split("T").first;
+    final parts = datePart.split("-");
+    if (parts.length == 3) {
+      return "${parts[2]}/${parts[1]}/${parts[0]}";
+    }
+    return datePart;
   }
 
   InputDecoration _inputDecoration({String? hint}) {
@@ -262,7 +344,9 @@ class _FeedbackPageState extends State<FeedbackPage> {
     );
   }
 
-  Widget _reviewCard() {
+  Widget _reviewCard(dynamic r) {
+    final rating = (r["rating"] ?? 0) as int;
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -272,44 +356,29 @@ class _FeedbackPageState extends State<FeedbackPage> {
           color: Colors.white.withOpacity(.08),
         ),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           Row(
-            children: [
-              Icon(Icons.star, color: Colors.amber, size: 18),
-              Icon(Icons.star, color: Colors.amber, size: 18),
-              Icon(Icons.star, color: Colors.amber, size: 18),
-              Icon(Icons.star, color: Colors.amber, size: 18),
-              Icon(Icons.star, color: Colors.amber, size: 18),
-            ],
-          ),
-
-          SizedBox(height: 10),
-
-          Text(
-            "Toyota Prius • Full Service",
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+            children: List.generate(
+              5,
+              (i) => Icon(
+                i < rating ? Icons.star : Icons.star_border,
+                color: Colors.amber,
+                size: 18,
+              ),
             ),
           ),
-
-          SizedBox(height: 6),
-
-          Text(
-            "Very satisfied with the service. Friendly staff and quick repair.",
-            style: TextStyle(
-              color: Colors.white70,
+          const SizedBox(height: 10),
+          if ((r["comment"] ?? "").toString().isNotEmpty)
+            Text(
+              r["comment"].toString(),
+              style: const TextStyle(color: Colors.white70),
             ),
-          ),
-
-          SizedBox(height: 10),
-
+          const SizedBox(height: 10),
           Text(
-            "08 Jul 2026",
-            style: TextStyle(
+            _formatDate(r["created_at"]),
+            style: const TextStyle(
               color: Colors.white54,
               fontSize: 12,
             ),
